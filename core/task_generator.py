@@ -21,7 +21,9 @@ def exceeds_cpu_budget(total_comp, required_comp, time_budget, cpu_cycles_budget
 
 import random
 
-def generate_compute_tasks(params, cpu_cycles_budget, current_time, time_chunk, delta_t, compute_queue, task_load_factor):
+
+def generate_compute_tasks(params, cpu_cycles_budget, current_time, time_chunk, delta_t, compute_queue,
+                           task_load_factor):
     if cpu_cycles_budget == 0:
         return {}
     compute_tasks = {}
@@ -109,7 +111,8 @@ def generate_compute_tasks(params, cpu_cycles_budget, current_time, time_chunk, 
             return compute_tasks
 
 
-def generate_training_tasks(params, cpu_cycles_budget, current_time, time_chunk, delta_t, training_queue, task_load_factor):
+def generate_training_tasks(params, cpu_cycles_budget, current_time, time_chunk, delta_t, training_queue,
+                            task_load_factor):
     '''
     :param params:
     :param cpu_cycles_budget: target cpu cycles budget(number of cpu cycles per second) to generate
@@ -130,10 +133,10 @@ def generate_training_tasks(params, cpu_cycles_budget, current_time, time_chunk,
         return training_tasks
 
     while True:
-        data_size =  random.uniform(params['training_data_size_l'], params['training_data_size_u'])
-        model_size =  random.uniform(params['model_size_l'], params['model_size_u'])
+        data_size = random.uniform(params['training_data_size_l'], params['training_data_size_u'])
+        model_size = random.uniform(params['model_size_l'], params['model_size_u'])
         epoch = int(random.randrange(params['epoch_l'], params['epoch_u']))
-        time_budget = int( random.uniform(params['training_time_budget_l'], params['training_time_budget_u']))
+        time_budget = int(random.uniform(params['training_time_budget_l'], params['training_time_budget_u']))
         computation_per_bit = int(500 / 40 * model_size)
         privacy_score = random.randint(2, 9)
         criticality_score = 0  # always zero for training tasks
@@ -147,14 +150,15 @@ def generate_training_tasks(params, cpu_cycles_budget, current_time, time_chunk,
             continue
 
         # Check if the generated task is computationally feasible either locally or remotely
-        if data_size / params['bandwidth'] + required_comp/time_budget + model_size/time_budget > params['comp_rsc'] and data_size / params['bandwidth'] + data_size / params['backhaul'] > time_budget:
+        if data_size / params['bandwidth'] + required_comp / time_budget + model_size / time_budget > params[
+            'comp_rsc'] and data_size / params['bandwidth'] + data_size / params['backhaul'] > time_budget:
             continue
 
         # Check if the generated task is not too big
         if (required_comp / time_budget) > 0.5 * cpu_cycles_budget:
             continue
 
-        total_comp.append(required_comp/time_budget)
+        total_comp.append(required_comp / time_budget)
         arrival_time = current_time + random.uniform(0, time_chunk)
         training_tasks[task_id] = {'data_size': data_size,
                                    'untransmitted_data': data_size,
@@ -181,4 +185,3 @@ def generate_training_tasks(params, cpu_cycles_budget, current_time, time_chunk,
 
         if sum(total_comp) > cpu_cycles_budget:
             return training_tasks
-

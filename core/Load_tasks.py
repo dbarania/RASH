@@ -44,11 +44,14 @@ def load_tasks_from_csv(path):
                                                             'time_budget': float(row['time_budget']),
                                                             'remained_time_budget': float(row['remained_time_budget']),
                                                             'arrival_time': float(row['arrival_time']),
-                                                            'comp_per_bit': float(row['comp_per_bit']) if row['task_type'] == 'training' else '',
+                                                            'comp_per_bit': float(row['comp_per_bit']) if row[
+                                                                                                              'task_type'] == 'training' else '',
                                                             'privacy_score': float(row['privacy_score']),
                                                             'criticality_score': float(row['criticality_score']),
-                                                            'epoch': float(row['epoch']) if row['task_type'] == 'training' else '',
-                                                            'model_size': float(row['model_size']) if row['task_type'] == 'training' else '',
+                                                            'epoch': float(row['epoch']) if row[
+                                                                                                'task_type'] == 'training' else '',
+                                                            'model_size': float(row['model_size']) if row[
+                                                                                                          'task_type'] == 'training' else '',
                                                             'task_type': row['task_type'],
                                                             'alpha': float(row['alpha']),
                                                             'decided': row['decided'] == 'True',
@@ -110,10 +113,9 @@ def load_and_reset_tasks(path, delta_t):
                                                             'model_size': '',
                                                             'task_type': row['task_type'],
                                                             'alpha': 0,
-                                                            'decided':  False,
-                                                            'overdue':  False,
+                                                            'decided': False,
+                                                            'overdue': False,
                                                             'completed': False,
                                                             }})
 
     return compute_tasks, training_tasks
-

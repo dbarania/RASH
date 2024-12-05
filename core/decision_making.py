@@ -16,6 +16,7 @@ def constraint_total_bandwidth_auxiliary(model, i):
 def constraint_total_backhaul_bandwidth(model, backhaul_bandwidth_budget):
     return sum(model.alpha[i] * model.bB[i] for i in model.i) <= backhaul_bandwidth_budget
 
+
 def constraint_total_backhaul_auxiliary(model, i):
     return model.bb[i] * model.bB[i] == 1
 
@@ -49,13 +50,13 @@ def constraint_risk_auxiliary(model, i):
 
 def constraint_time_auxiliary_compute(model, i):
     return model.T >= model.alpha[i] * (model.D[i] * model.b[i] + model.D_p[i] * model.bb[i]) + \
-                (1 - model.alpha[i]) * (model.D[i] * model.b[i] + model.D_p[i] * model.e[i] * model.N_c[i] * model.f[i] +
+        (1 - model.alpha[i]) * (model.D[i] * model.b[i] + model.D_p[i] * model.e[i] * model.N_c[i] * model.f[i] +
                                 (model.M[i] * model.bb[i]))
 
 
 def constraint_time_auxiliary_training(model, i_c):
     return model.T >= model.alpha[i_c] * (model.D[i_c] * model.b[i_c] + model.D[i_c] * model.bb[i_c]) + \
-               (1 - model.alpha[i_c]) * (model.D[i_c] * model.b[i_c] + model.Z[i_c] * model.f[i_c])
+        (1 - model.alpha[i_c]) * (model.D[i_c] * model.b[i_c] + model.Z[i_c] * model.f[i_c])
 
 
 def objective_risk_minimization(model):
@@ -67,7 +68,8 @@ def objective_delay_minimization(model):
 
 
 def rash(constant_params, compute_tasks, training_tasks, sim_mode):
-    bandwidth_budget, backhaul_bandwidth_budget, cpu_cycle_frequency = constant_params['bandwidth'], constant_params['backhaul'], constant_params['comp_rsc']
+    bandwidth_budget, backhaul_bandwidth_budget, cpu_cycle_frequency = constant_params['bandwidth'], constant_params[
+        'backhaul'], constant_params['comp_rsc']
 
     # all training tasks params
     t_tasks_data_size = {}
@@ -110,7 +112,6 @@ def rash(constant_params, compute_tasks, training_tasks, sim_mode):
         c_tasks_privacy_score[task_id] = compute_tasks[task_id]['privacy_score']
         c_tasks_criticality_score[task_id] = compute_tasks[task_id]['criticality_score']
         c_tasks_ids.append(task_id)
-
 
     model = pyo.ConcreteModel()
 
@@ -263,5 +264,3 @@ def rash(constant_params, compute_tasks, training_tasks, sim_mode):
         instance.write('infeasible.lp', io_options={'symbolic_solver_labels': True})
         print(f'Error raised in decision making \n {e}')
         return instance, e
-
-

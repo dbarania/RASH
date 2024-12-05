@@ -8,6 +8,7 @@ from decision_making import rash
 from task_generator import *
 from Load_tasks import load_and_reset_tasks
 
+
 def pars_arguments():
     parser = argparse.ArgumentParser(description="Simulation script for task postponing and optimization.")
     parser.add_argument("--objective", type=str, default='min_max_p', choices=['min_max_p', 'min_max_delay'],
@@ -17,7 +18,8 @@ def pars_arguments():
     parser.add_argument('--mode', type=str, default='new_tasks', choices=['pre_generated_tasks', 'new_tasks'],
                         help='Simulation mode: "pre_generated_tasks" to use existing tasks or "new_tasks" to generate new tasks')
     parser.add_argument('--iterations', type=int, default=10, help='Number of iterations to run the simulation')
-    parser.add_argument('--deltaT', type=float, default=0.005, help='The time period over which the decision-making algorithm runs in second')
+    parser.add_argument('--deltaT', type=float, default=0.005,
+                        help='The time period over which the decision-making algorithm runs in second')
     parser.add_argument('--duration', type=float, default=60, help='Duration of the simulation in seconds.')
     parser.add_argument('--load', type=float, default=0.70, help='System load to be generated in percentage.')
 
@@ -114,13 +116,13 @@ def setup_simulation():
     load = args.load
     iterations = args.iterations
     sim_duration = args.duration * 1000  # convert second to ms
-    delta_t = args.deltaT * 1000 # ms
+    delta_t = args.deltaT * 1000  # ms
     target_constant_load = load * params['comp_rsc']  # target load per second
-    c_load =  target_constant_load
+    c_load = target_constant_load
     t_load = 0 * target_constant_load
     task_size_factor = 0.008  # determines task size
-    training_tasks_ratio = 1/3  # ratio of training tasks when generating new tasks
-    compute_tasks_ratio = 2/3  # ratio of compute tasks when generating new tasks
+    training_tasks_ratio = 1 / 3  # ratio of training tasks when generating new tasks
+    compute_tasks_ratio = 2 / 3  # ratio of compute tasks when generating new tasks
     logging_frequency = 1  # save logs every 1000 time slots
     max_time_slot = int((sim_duration // delta_t) - 1)
     all_tasks_file = f'time_slot_{max_time_slot}.csv'
@@ -175,7 +177,8 @@ if __name__ == '__main__':
                     training_queue.update(training_tasks)
 
                 # calculate the current load of the system at the current time slot
-                total_system_load, total_backhaul_load = calculate_system_load(training_queue, compute_queue, current_time)
+                total_system_load, total_backhaul_load = calculate_system_load(training_queue, compute_queue,
+                                                                               current_time)
                 load_increment = target_constant_load - total_system_load
 
             if sim_mode["mode"] == "new_tasks":
@@ -201,7 +204,8 @@ if __name__ == '__main__':
                     # add newly generated tasks to task queues
                     compute_queue.update(compute_tasks)
                     training_queue.update(training_tasks)
-                total_system_load, total_backhaul_load = calculate_system_load(training_queue, compute_queue, current_time)
+                total_system_load, total_backhaul_load = calculate_system_load(training_queue, compute_queue,
+                                                                               current_time)
                 load_increment = target_constant_load - total_system_load
             # run optimization for all tasks
             solved_model, c_executed_task, t_executed_task = optimization_executor(compute_queue,
@@ -230,7 +234,8 @@ if __name__ == '__main__':
                                                                         f'{path_to_save}/{iteration}')
 
             # log
-            tasks_report_log = record_tasks_report(compute_queue, training_queue, c_executed_task, t_executed_task, overdue_tasks,
+            tasks_report_log = record_tasks_report(compute_queue, training_queue, c_executed_task, t_executed_task,
+                                                   overdue_tasks,
                                                    time_slot,
                                                    f'{path_to_save}/{iteration}', current_time, tasks_report_log)
             rsc_report_log = record_model_report(solved_model, rsc_report_log)
@@ -254,5 +259,5 @@ if __name__ == '__main__':
         save_tasks({**compute_queue, **training_tasks}, time_slot, f'{path_to_save}/{iteration}')
 
         end_time = time.time()
-        log_function(f'{end_time - start_time}, load {load}, iteration {iteration}, simulation run time: {sim_duration}, obj {sim_mode["objective"]}, postponing {sim_mode["postponing"]}')
-
+        log_function(
+            f'{end_time - start_time}, load {load}, iteration {iteration}, simulation run time: {sim_duration}, obj {sim_mode["objective"]}, postponing {sim_mode["postponing"]}')

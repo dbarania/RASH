@@ -5,10 +5,10 @@ import shutil
 import pickle
 import pyomo.environ as pyo
 
+
 def log_function(message):
     with open("log.txt", "a") as f:
         f.write(f'{message} \n')
-
 
 
 def create_directories(path, iterations):
@@ -19,8 +19,8 @@ def create_directories(path, iterations):
         os.makedirs(f'{path}/{i}', exist_ok=True)
 
 
-
-def record_tasks_report(c_queue, t_queue, c_execution_queue, t_execution_queue, overdue_tasks_list, time_slot, path, current_time, tasks_report_log):
+def record_tasks_report(c_queue, t_queue, c_execution_queue, t_execution_queue, overdue_tasks_list, time_slot, path,
+                        current_time, tasks_report_log):
     '''
     this record all the tasks report into a list
     :param c_queue:
@@ -40,7 +40,8 @@ def record_tasks_report(c_queue, t_queue, c_execution_queue, t_execution_queue, 
     postpone_calls = ""
     processed_tasks = len(c_execution_queue) + len(t_execution_queue)
     overdue_tasks_ids = '-'.join([str(task_id) for task_id in overdue_tasks_list])  # for the current time slot
-    processed_tasks_ids = [key for key,value in c_execution_queue.items()] + [key for key,value in t_execution_queue.items()]
+    processed_tasks_ids = [key for key, value in c_execution_queue.items()] + [key for key, value in
+                                                                               t_execution_queue.items()]
 
     all_tasks = {**c_queue, **t_queue}
     for task_id, task_specs in all_tasks.items():
@@ -57,7 +58,8 @@ def record_tasks_report(c_queue, t_queue, c_execution_queue, t_execution_queue, 
         if str(time_slot) in postponement_dict.keys():
             postponed_tasks = postponement_dict[str(time_slot)]
             postpone_calls = len(postponed_tasks)
-            postponed_tasks_ids = "-".join([['-'.join(str(task_id) for task_id in id_set)][0] for id_set in postponed_tasks])
+            postponed_tasks_ids = "-".join(
+                [['-'.join(str(task_id) for task_id in id_set)][0] for id_set in postponed_tasks])
             postponed_tasks_count = len(postponed_tasks_ids.split('-'))
 
     tasks_report_log.append({"time_slot": time_slot,
