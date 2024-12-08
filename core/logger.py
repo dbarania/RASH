@@ -15,13 +15,14 @@ def create_directories(path, iterations):
     if os.path.exists(path):
         shutil.rmtree(path)
     for i in range(iterations):
+        # TODO WTF is this?
         os.makedirs(f'{path}/{i}', exist_ok=True)
         os.makedirs(f'{path}/{i}', exist_ok=True)
 
 
 def record_tasks_report(c_queue, t_queue, c_execution_queue, t_execution_queue, overdue_tasks_list, time_slot, path,
                         current_time, tasks_report_log):
-    '''
+    """
     this record all the tasks report into a list
     :param c_queue:
     :param t_queue:
@@ -30,7 +31,7 @@ def record_tasks_report(c_queue, t_queue, c_execution_queue, t_execution_queue, 
     :param time_slot:
     :param path:
     :return:
-    '''
+    """
 
     total_tasks_generated = 0
     overdue_tasks = 0
@@ -145,17 +146,14 @@ def save_load_report(path, load_log):
 
 
 def save_tasks(tasks, time_slot_number, path):
-    '''
+    """
     this function saves the tasks in a csv file
     :return:
-    '''
-
-    with open(os.path.join(path, f'time_slot_{time_slot_number}.csv'), 'w') as f:
+    """
+    with open(f'{path}/time_slot_{time_slot_number}.csv', 'w') as f:
         f.write(
             'time slot,task_id,task_type,arrival_time,time_budget,remained_time_budget,required_comp,remained_comp,data_size,untransmitted_data,data_for_processing,privacy_score,decided,completed,overdue,criticality_score,alpha,model_size,epoch,comp_per_bit\n')
-
-    for task_id, task_specs in tasks.items():
-        with open(os.path.join(path, f'time_slot_{time_slot_number}.csv'), 'a') as f:
+        for task_id, task_specs in tasks.items():
             writer = csv.writer(f)
             writer.writerow(
                 [task_specs['time_slot_arrival'], task_id, task_specs['task_type'], task_specs['arrival_time'],
@@ -167,6 +165,24 @@ def save_tasks(tasks, time_slot_number, path):
                  task_specs['model_size'] if task_specs['task_type'] == 'training' else None,
                  task_specs['epoch'] if task_specs['task_type'] == 'training' else None,
                  task_specs['comp_per_bit'] if task_specs['task_type'] == 'training' else None])
+    #
+    # with open(os.path.join(path, f'time_slot_{time_slot_number}.csv'), 'w') as f:
+    #     f.write(
+    #         'time slot,task_id,task_type,arrival_time,time_budget,remained_time_budget,required_comp,remained_comp,data_size,untransmitted_data,data_for_processing,privacy_score,decided,completed,overdue,criticality_score,alpha,model_size,epoch,comp_per_bit\n')
+    #
+    # for task_id, task_specs in tasks.items():
+    #     with open(os.path.join(path, f'time_slot_{time_slot_number}.csv'), 'a') as f:
+    #         writer = csv.writer(f)
+    #         writer.writerow(
+    #             [task_specs['time_slot_arrival'], task_id, task_specs['task_type'], task_specs['arrival_time'],
+    #              task_specs['time_budget'], task_specs['remained_time_budget'],
+    #              task_specs['required_comp'], task_specs['remained_comp'], task_specs['data_size'],
+    #              task_specs['untransmitted_data'], task_specs['data_for_processing'],
+    #              task_specs['privacy_score'], task_specs['decided'], task_specs['completed'],
+    #              task_specs['overdue'], task_specs['criticality_score'], task_specs['alpha'],
+    #              task_specs['model_size'] if task_specs['task_type'] == 'training' else None,
+    #              task_specs['epoch'] if task_specs['task_type'] == 'training' else None,
+    #              task_specs['comp_per_bit'] if task_specs['task_type'] == 'training' else None])
 
 
 def save_model(model, model_name, time_slot_number, path, ):

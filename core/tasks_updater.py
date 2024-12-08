@@ -77,7 +77,7 @@ def update_tasks(c_queue, t_queue, c_execution_queue, t_execution_queue, params,
         transmitted_data = delta_t * pyo.value(solver_solution.B[task_id])
         if pyo.value(solver_solution.alpha[task_id]) == 0:
             processed_data = (delta_t * pyo.value(solver_solution.F[task_id])) / (
-                        task_specs['epoch'] * task_specs['comp_per_bit'])
+                    task_specs['epoch'] * task_specs['comp_per_bit'])
         else:
             processed_data = (delta_t * pyo.value(solver_solution.bb[task_id]))
 

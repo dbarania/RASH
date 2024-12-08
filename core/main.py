@@ -1,15 +1,17 @@
 import sys
 import time
 import argparse
-from logger import *
+# from logger import *
 from postponing import *
 from tasks_updater import *
 from decision_making import rash
-from task_generator import *
-from Load_tasks import load_and_reset_tasks
+import task_generator
+import logger
+# from Load_tasks import load_and_reset_tasks
+import Load_tasks
 
 
-def pars_arguments():
+def parse_arguments():
     parser = argparse.ArgumentParser(description="Simulation script for task postponing and optimization.")
     parser.add_argument("--objective", type=str, default='min_max_p', choices=['min_max_p', 'min_max_delay'],
                         help='Optimization objective function: min_max_p or min_max_delay')
@@ -43,7 +45,7 @@ def calculate_system_load(training_tasks, compute_tasks, current_time):
     :param compute_tasks: a dict of compute tasks
     :return: two floats: one for handled load and one for used backhaul capacity
     """
-    total_current_comp_load = 0
+    total_current_computation_load = 0
     total_current_backhaul_load = 0
     all_tasks = {**training_tasks, **compute_tasks}
     for task_id, task_specs in all_tasks.items():
@@ -51,9 +53,9 @@ def calculate_system_load(training_tasks, compute_tasks, current_time):
             if task_specs["alpha"] == 1:
                 total_current_backhaul_load += task_specs['data_for_processing'] / task_specs['remained_time_budget']
             else:
-                total_current_comp_load += task_specs['remained_comp'] / task_specs['remained_time_budget']
+                total_current_computation_load += task_specs['remained_comp'] / task_specs['remained_time_budget']
 
-    return total_current_comp_load, total_current_backhaul_load
+    return total_current_computation_load, total_current_backhaul_load
 
 
 def check_constraints(solver_solution):
@@ -81,7 +83,7 @@ def optimization_executor(c_queue, t_queue, params, iteration, current_time, tim
         solver_solution, solver_status = rash(params, c_execution_queue, t_execution_queue, sim_mode)
         end = time.time()
         if time_slot % 1000 == 0:
-            log_function(f"decision making time: {end - start}")
+            logger.log_function(f"decision making time: {end - start}")
         if solver_status == 'optimal':
             return solver_solution, c_execution_queue, t_execution_queue
 
@@ -109,7 +111,7 @@ def optimization_executor(c_queue, t_queue, params, iteration, current_time, tim
 
 
 def setup_simulation():
-    args = pars_arguments()
+    args = parse_arguments()
     param_path = './parameters.txt'
     params = read_constant_params(param_path)
 
@@ -164,13 +166,16 @@ if __name__ == '__main__':
         rsc_report_log = []
         load_log = []
 
+        total_system_load = 0
+        load_increment = 0
+        total_backhaul_load = 0
         for time_slot in range(int(sim_duration // delta_t)):
             current_time = time_slot * delta_t
 
             if sim_mode["mode"] == "pre_generated_tasks":
                 # load tasks from the csv file
                 if time_slot == 0:
-                    compute_tasks, training_tasks = load_and_reset_tasks(
+                    compute_tasks, training_tasks = Load_tasks.load_and_reset_tasks(
                         os.path.join(path_to_load, f'{iteration}', all_tasks_file), delta_t)
                     # add tasks to task queues
                     compute_queue.update(compute_tasks)
@@ -182,25 +187,26 @@ if __name__ == '__main__':
                 load_increment = target_constant_load - total_system_load
 
             if sim_mode["mode"] == "new_tasks":
+
                 if time_slot == 0:  # generate the initial load for the first time slot
-                    compute_tasks = generate_compute_tasks(params, c_load, current_time, 0,
-                                                           delta_t, compute_queue, task_size_factor)
-                    training_tasks = generate_training_tasks(params, t_load, current_time, 0, delta_t,
-                                                             training_queue, task_size_factor)
+                    compute_tasks = task_generator.generate_compute_tasks(params, c_load, current_time, 0,
+                                                                          delta_t, compute_queue, task_size_factor)
+                    training_tasks = task_generator.generate_training_tasks(params, t_load, current_time, 0, delta_t,
+                                                                            training_queue, task_size_factor)
                     # add newly generated tasks to task queues
                     compute_queue.update(compute_tasks)
                     training_queue.update(training_tasks)
-                    save_tasks({**compute_queue, **training_tasks}, time_slot, f'{path_to_save}/{iteration}')
+                    logger.save_tasks({**compute_queue, **training_tasks}, time_slot, f'{path_to_save}/{iteration}')
 
                 elif total_system_load < (2 / 3) * target_constant_load:
                     c_load_increment = load_increment * compute_tasks_ratio
                     t_load_increment = load_increment * training_tasks_ratio
-                    compute_tasks = generate_compute_tasks(params, c_load_increment, current_time,
-                                                           0, delta_t, compute_queue, task_size_factor)
+                    compute_tasks = task_generator.generate_compute_tasks(params, c_load_increment, current_time,
+                                                                          0, delta_t, compute_queue, task_size_factor)
                     # training_tasks = generate_training_tasks(params, t_load_increment, current_time, 0, delta_t,
                     #                                          training_queue, task_size_factor)
 
-                    save_tasks({**compute_queue, **training_tasks}, time_slot, f'{path_to_save}/{iteration}')
+                    logger.save_tasks({**compute_queue, **training_tasks}, time_slot, f'{path_to_save}/{iteration}')
                     # add newly generated tasks to task queues
                     compute_queue.update(compute_tasks)
                     training_queue.update(training_tasks)
@@ -234,30 +240,33 @@ if __name__ == '__main__':
                                                                         f'{path_to_save}/{iteration}')
 
             # log
-            tasks_report_log = record_tasks_report(compute_queue, training_queue, c_executed_task, t_executed_task,
-                                                   overdue_tasks,
-                                                   time_slot,
-                                                   f'{path_to_save}/{iteration}', current_time, tasks_report_log)
-            rsc_report_log = record_model_report(solved_model, rsc_report_log)
+            tasks_report_log = logger.record_tasks_report(compute_queue, training_queue, c_executed_task,
+                                                          t_executed_task,
+                                                          overdue_tasks,
+                                                          time_slot,
+                                                          f'{path_to_save}/{iteration}', current_time, tasks_report_log)
+            rsc_report_log = logger.record_model_report(solved_model, rsc_report_log)
 
             # write the recorded log
             if time_slot % logging_frequency == 0:
-                save_tasks_report(os.path.join(path_to_save, str(iteration), 'tasks_report.csv'), tasks_report_log)
-                save_model_report(os.path.join(path_to_save, str(iteration), 'rec_usage_summary.csv'), rsc_report_log)
-                save_load_report(os.path.join(path_to_save, str(iteration), 'load_history.csv'), load_log)
+                logger.save_tasks_report(os.path.join(path_to_save, str(iteration), 'tasks_report.csv'),
+                                         tasks_report_log)
+                logger.save_model_report(os.path.join(path_to_save, str(iteration), 'rec_usage_summary.csv'),
+                                         rsc_report_log)
+                logger.save_load_report(os.path.join(path_to_save, str(iteration), 'load_history.csv'), load_log)
                 print(f'iteration : {iteration}, time slot number: {time_slot}. tasks are logged.')
                 tasks_report_log = []
                 rsc_report_log = []
                 load_log = []
 
         # write the final log
-        save_tasks_report(os.path.join(path_to_save, str(iteration), 'tasks_report.csv'), tasks_report_log)
-        save_model_report(os.path.join(path_to_save, str(iteration), 'rec_usage_summary.csv'), rsc_report_log)
-        save_load_report(os.path.join(path_to_save, str(iteration), 'load_history.csv'), load_log)
+        logger.save_tasks_report(os.path.join(path_to_save, str(iteration), 'tasks_report.csv'), tasks_report_log)
+        logger.save_model_report(os.path.join(path_to_save, str(iteration), 'rec_usage_summary.csv'), rsc_report_log)
+        logger.save_load_report(os.path.join(path_to_save, str(iteration), 'load_history.csv'), load_log)
 
         # save all the tasks and their specs and the model
-        save_tasks({**compute_queue, **training_tasks}, time_slot, f'{path_to_save}/{iteration}')
+        logger.save_tasks({**compute_queue, **training_tasks}, int(sim_duration // delta_t), f'{path_to_save}/{iteration}')
 
         end_time = time.time()
-        log_function(
+        logger.log_function(
             f'{end_time - start_time}, load {load}, iteration {iteration}, simulation run time: {sim_duration}, obj {sim_mode["objective"]}, postponing {sim_mode["postponing"]}')

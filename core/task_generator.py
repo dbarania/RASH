@@ -19,7 +19,7 @@ def exceeds_cpu_budget(total_comp, required_comp, time_budget, cpu_cycles_budget
     return sum(total_comp) + required_comp / time_budget > 1.5 * cpu_cycles_budget
 
 
-import random
+
 
 
 def generate_compute_tasks(params, cpu_cycles_budget, current_time, time_chunk, delta_t, compute_queue,
