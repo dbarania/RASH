@@ -1,6 +1,6 @@
 import sys
 sys.path.insert(1, '../core/')
-from Load_tasks import load_tasks_from_csv
+from load_tasks import load_tasks_from_csv
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import pandas as pd

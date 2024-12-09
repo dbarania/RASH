@@ -1,14 +1,13 @@
-import sys
+import os
 import time
 import argparse
-# from logger import *
-from postponing import *
-from tasks_updater import *
-from decision_making import rash
+import postponing
+import tasks_updater
+import decision_making
 import task_generator
 import logger
-# from Load_tasks import load_and_reset_tasks
-import Load_tasks
+import load_tasks
+import pyomo.environ as pyo
 
 
 def parse_arguments():
@@ -65,22 +64,24 @@ def check_constraints(solver_solution):
     return True
 
 
-def optimization_executor(c_queue, t_queue, params, iteration, current_time, time_slot, sim_mode):
+def optimization_executor(c_queue, t_queue, parameters, num_iterations, curr_time, time_slot, simulation_mode):
     c_execution_queue = {}
     t_execution_queue = {}
 
-    for task_id, task_specs in c_queue.items():
-        if not task_specs['completed'] and not task_specs['overdue'] and task_specs['arrival_time'] <= current_time:
-            c_execution_queue.update({task_id: task_specs})
-    for task_id, task_specs in t_queue.items():
-        if not task_specs['completed'] and not task_specs['overdue'] and task_specs['arrival_time'] <= current_time:
-            t_execution_queue.update({task_id: task_specs})
-    if len(c_execution_queue) == 0 and len(t_execution_queue) == 0:  # no task for execution
+    for task_id, task_details in c_queue.items():
+        if not task_details['completed'] and not task_details['overdue'] and task_details['arrival_time'] <= curr_time:
+            c_execution_queue.update({task_id: task_details})
+
+    for task_id, task_details in t_queue.items():
+        if not task_details['completed'] and not task_details['overdue'] and task_details['arrival_time'] <= curr_time:
+            t_execution_queue.update({task_id: task_details})
+    if len(c_execution_queue) == 0 and len(t_execution_queue) == 0:  # no task to execute
         return None, {}, {}
 
     while True:
         start = time.time()
-        solver_solution, solver_status = rash(params, c_execution_queue, t_execution_queue, sim_mode)
+        solver_solution, solver_status = decision_making.rash(parameters, c_execution_queue, t_execution_queue,
+                                                              simulation_mode)
         end = time.time()
         if time_slot % 1000 == 0:
             logger.log_function(f"decision making time: {end - start}")
@@ -95,19 +96,19 @@ def optimization_executor(c_queue, t_queue, params, iteration, current_time, tim
                 return solver_solution, {}, {}
 
         if len(c_execution_queue) + len(t_execution_queue) <= 1:
-            for task_id, task_specs in c_execution_queue.items():
+            for task_id, task_details in c_execution_queue.items():
                 c_queue[task_id]["overdue"] = True
-            for task_id, task_specs in t_execution_queue.items():
+            for task_id, task_details in t_execution_queue.items():
                 t_queue[task_id]["overdue"] = True
             return solver_solution, {}, {}
 
         # there is no optimal or feasible solution, so, postpone some tasks
-        postponing_function = postponing_strategies.get(sim_mode["postponing"])
+        postponing_function = postponing_strategies.get(simulation_mode["postponing"])
         if postponing_function:
             c_execution_queue, t_execution_queue = postponing_function(
-                c_execution_queue, t_execution_queue, params, f'{path_to_save}/{iteration}', time_slot)
+                c_execution_queue, t_execution_queue, parameters, f'{path_to_save}/{num_iterations}', time_slot)
         else:
-            raise ValueError(f"Unknown postponing strategy: {sim_mode['postponing']}")
+            raise ValueError(f"Unknown postponing strategy: {simulation_mode['postponing']}")
 
 
 def setup_simulation():
@@ -130,8 +131,8 @@ def setup_simulation():
     all_tasks_file = f'time_slot_{max_time_slot}.csv'
 
     postponing_strategies = {
-        "heuristic": heuristic_postponing,
-        "ERAFL_postponing_algo": ERAFL_postponing_algo,
+        "heuristic": postponing.heuristic_postponing,
+        "ERAFL_postponing_algo": postponing.ERAFL_postponing_algo,
     }
 
     sim_mode = {
@@ -172,20 +173,6 @@ if __name__ == '__main__':
         for time_slot in range(int(sim_duration // delta_t)):
             current_time = time_slot * delta_t
 
-            if sim_mode["mode"] == "pre_generated_tasks":
-                # load tasks from the csv file
-                if time_slot == 0:
-                    compute_tasks, training_tasks = Load_tasks.load_and_reset_tasks(
-                        os.path.join(path_to_load, f'{iteration}', all_tasks_file), delta_t)
-                    # add tasks to task queues
-                    compute_queue.update(compute_tasks)
-                    training_queue.update(training_tasks)
-
-                # calculate the current load of the system at the current time slot
-                total_system_load, total_backhaul_load = calculate_system_load(training_queue, compute_queue,
-                                                                               current_time)
-                load_increment = target_constant_load - total_system_load
-
             if sim_mode["mode"] == "new_tasks":
 
                 if time_slot == 0:  # generate the initial load for the first time slot
@@ -210,9 +197,25 @@ if __name__ == '__main__':
                     # add newly generated tasks to task queues
                     compute_queue.update(compute_tasks)
                     training_queue.update(training_tasks)
+
                 total_system_load, total_backhaul_load = calculate_system_load(training_queue, compute_queue,
                                                                                current_time)
                 load_increment = target_constant_load - total_system_load
+
+            elif sim_mode["mode"] == "pre_generated_tasks":
+                # load tasks from the csv file
+                if time_slot == 0:
+                    compute_tasks, training_tasks = load_tasks.load_and_reset_tasks(
+                        os.path.join(path_to_load, f'{iteration}', all_tasks_file), delta_t)
+                    # add tasks to task queues
+                    compute_queue.update(compute_tasks)
+                    training_queue.update(training_tasks)
+
+                # calculate the current load of the system at the current time slot
+                total_system_load, total_backhaul_load = calculate_system_load(training_queue, compute_queue,
+                                                                               current_time)
+                load_increment = target_constant_load - total_system_load
+
             # run optimization for all tasks
             solved_model, c_executed_task, t_executed_task = optimization_executor(compute_queue,
                                                                                    training_queue,
@@ -222,22 +225,22 @@ if __name__ == '__main__':
                                                                                    time_slot,
                                                                                    sim_mode)
             # calculate handled system load
-            handled_comp_load, handled_bakchaul = calculate_system_load(t_executed_task, c_executed_task, current_time)
+            handled_comp_load, handled_backhaul = calculate_system_load(t_executed_task, c_executed_task, current_time)
             load_log.append({"total_backhaul_load": total_backhaul_load,
                              "total_system_load": total_system_load,
                              "handled_load_per_slot": handled_comp_load})
 
             # update tasks budget
-            compute_queue, training_queue, overdue_tasks = update_tasks(compute_queue,
-                                                                        training_queue,
-                                                                        c_executed_task,
-                                                                        t_executed_task,
-                                                                        params,
-                                                                        solved_model,
-                                                                        current_time,
-                                                                        delta_t,
-                                                                        time_slot,
-                                                                        f'{path_to_save}/{iteration}')
+            compute_queue, training_queue, overdue_tasks = tasks_updater.update_tasks(compute_queue,
+                                                                                      training_queue,
+                                                                                      c_executed_task,
+                                                                                      t_executed_task,
+                                                                                      params,
+                                                                                      solved_model,
+                                                                                      current_time,
+                                                                                      delta_t,
+                                                                                      time_slot,
+                                                                                      f'{path_to_save}/{iteration}')
 
             # log
             tasks_report_log = logger.record_tasks_report(compute_queue, training_queue, c_executed_task,
@@ -265,7 +268,8 @@ if __name__ == '__main__':
         logger.save_load_report(os.path.join(path_to_save, str(iteration), 'load_history.csv'), load_log)
 
         # save all the tasks and their specs and the model
-        logger.save_tasks({**compute_queue, **training_tasks}, int(sim_duration // delta_t), f'{path_to_save}/{iteration}')
+        logger.save_tasks({**compute_queue, **training_tasks}, int(sim_duration // delta_t),
+                          f'{path_to_save}/{iteration}')
 
         end_time = time.time()
         logger.log_function(
